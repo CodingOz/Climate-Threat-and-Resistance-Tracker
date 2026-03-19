@@ -9,8 +9,6 @@ from app.routers import threats, companies, organisations, campaigns, auth, anal
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     yield
 
 
