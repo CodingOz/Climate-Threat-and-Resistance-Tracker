@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from app.core.database import engine, Base
 from app.routers import threats, companies, organisations, campaigns, auth
 import app.models
+from app.routers import threats, companies, organisations, campaigns, auth, analytics
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ app.include_router(threats.router)
 app.include_router(companies.router)
 app.include_router(organisations.router)
 app.include_router(campaigns.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")
