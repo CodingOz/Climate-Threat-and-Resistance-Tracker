@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlalchemy import String, Integer, DateTime, Date, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -27,8 +27,8 @@ class Organisation(Base):
     website: Mapped[str | None] = mapped_column(String, nullable=True)
     member_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=datetime.utcnow)
 
     # Relationship to campaigns
     campaigns: Mapped[list["Campaign"]] = relationship(
