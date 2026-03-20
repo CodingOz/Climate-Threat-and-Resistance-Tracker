@@ -59,7 +59,7 @@ async def auth_headers(client: AsyncClient):
         "password": "testpass123",
         "role": "ADMIN"
     })
-    response = await client.post("/auth/token", data={
+    response = await client.post("/auth/token", json={
         "username": "testuser",
         "password": "testpass123"
     })

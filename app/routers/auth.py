@@ -7,8 +7,8 @@ from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token
 from app.models import user
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserResponse
-from app.dependencies import get_current_user
+from app.schemas.user import UserCreate, UserResponse, UserLogin, TokenResponse, UserUpdate
+from app.dependencies import get_current_user, require_admin
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -39,15 +39,15 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     return db_user
 
 
-@router.post("/token")
+@router.post("/token", response_model=TokenResponse)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    credentials: UserLogin,
     db: AsyncSession = Depends(get_db)
 ):
-    # Look up user by username
-    result = await db.execute(select(User).where(User.username == form_data.username))
+    result = await db.execute(select(User).where(User.username == credentials.username))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+
+    if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -56,31 +56,35 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
-    user.last_login = datetime.now(timezone.utc)
-
-
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-
-    # Update last login
     user.last_login = datetime.now(timezone.utc)
     await db.commit()
 
     access_token = create_access_token(data={"sub": user.id})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "username": user.username,
-        "role": user.role
-    }
-
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        username=user.username,
+        role=user.role
+    )
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    user_data: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    for key, value in user_data.model_dump(exclude_none=True).items():
+        setattr(user, key, value)
+    await db.commit()
+    await db.refresh(user)
+    return user

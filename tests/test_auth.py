@@ -43,7 +43,7 @@ async def test_login_success(client: AsyncClient):
         "password": "password123",
         "role": "READER"
     })
-    response = await client.post("/auth/token", data={
+    response = await client.post("/auth/token", json={
         "username": "logintest",
         "password": "password123"
     })
@@ -54,7 +54,7 @@ async def test_login_success(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient):
-    response = await client.post("/auth/token", data={
+    response = await client.post("/auth/token", json={
         "username": "testuser",
         "password": "wrongpassword"
     })

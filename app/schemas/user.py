@@ -25,3 +25,17 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+    
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    username: str
+    role: UserRole
+    
+
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
