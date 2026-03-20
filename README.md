@@ -73,7 +73,7 @@ Full endpoint reference with parameters, request bodies, and example responses i
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/climate-threat-tracker.git
+git clone https://github.com/CodingOz/Climate-Threat-and-Resistance-Tracker.git
 cd climate-threat-tracker
 ```
 
