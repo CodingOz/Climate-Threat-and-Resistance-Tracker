@@ -37,3 +37,10 @@ app.include_router(analytics.router)
 @app.get("/")
 async def root():
     return {"message": "Climate Threat & Resistance Tracker API", "docs": "/docs"}
+
+@app.post("/admin/seed-once", include_in_schema=False)
+async def run_seed():
+    from scripts.seed_data import seed
+    import asyncio
+    await seed()
+    return {"status": "database seeded successfully"}
