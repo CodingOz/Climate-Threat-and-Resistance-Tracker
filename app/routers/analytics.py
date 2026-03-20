@@ -22,7 +22,7 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
 @router.get("/threats/by-type", response_model=list[ThreatByTypeResponse])
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def threats_by_type(request: Request, db: AsyncSession = Depends(get_db)):
     """Count of threats and total projected CO2 impact grouped by threat type."""
     result = await db.execute(
@@ -46,7 +46,7 @@ async def threats_by_type(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/threats/by-status", response_model=list[ThreatByStatusResponse])
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def threats_by_status(request: Request, db: AsyncSession = Depends(get_db)):
     """Count of threats at each stage of the approval/construction pipeline."""
     result = await db.execute(
@@ -68,7 +68,7 @@ async def threats_by_status(request: Request, db: AsyncSession = Depends(get_db)
 
 
 @router.get("/threats/hotspots", response_model=list[ThreatHotspotResponse])
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def threat_hotspots(request: Request, db: AsyncSession = Depends(get_db)):
     """Countries ranked by number of active threats and total CO2 at risk."""
     result = await db.execute(
@@ -95,7 +95,7 @@ async def threat_hotspots(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/threats/co2-at-risk", response_model=CO2AtRiskResponse)
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def co2_at_risk(request: Request, db: AsyncSession = Depends(get_db)):
     """Total projected CO2 from all non-cancelled threats — the headline number."""
     result = await db.execute(
@@ -133,7 +133,7 @@ async def co2_at_risk(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/companies/worst-offenders", response_model=list[WorstOffenderResponse])
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def worst_offenders(request: Request, db: AsyncSession = Depends(get_db)):
     """Companies ranked by number of active threats they are linked to."""
     result = await db.execute(
@@ -168,7 +168,7 @@ async def worst_offenders(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/campaigns/success-rate", response_model=list[CampaignSuccessRateResponse])
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def campaign_success_rate(request: Request, db: AsyncSession = Depends(get_db)):
     """Win/loss/ongoing breakdown by campaign type."""
     result = await db.execute(
@@ -196,7 +196,7 @@ async def campaign_success_rate(request: Request, db: AsyncSession = Depends(get
 
 
 @router.get("/resistance/coverage", response_model=ResistanceCoverageResponse)
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def resistance_coverage(request: Request, db: AsyncSession = Depends(get_db)):
     """What percentage of tracked threats have active opposition campaigns?"""
     total_result = await db.execute(
@@ -228,7 +228,7 @@ async def resistance_coverage(request: Request, db: AsyncSession = Depends(get_d
 
 
 @router.get("/resistance/most-active-organisations", response_model=list[MostActiveOrgResponse])
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def most_active_organisations(request: Request, db: AsyncSession = Depends(get_db)):
     """Organisations ranked by number of campaigns and total petition signatures."""
     result = await db.execute(
@@ -261,7 +261,7 @@ async def most_active_organisations(request: Request, db: AsyncSession = Depends
 
 
 @router.get("/resistance/wins", response_model=list[ResistanceWinResponse])
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def resistance_wins(request: Request, db: AsyncSession = Depends(get_db)):
     """All campaigns that have been won."""
     result = await db.execute(
@@ -287,7 +287,7 @@ async def resistance_wins(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/summary", response_model=SummaryResponse)
-@limiter.limit("50/minute")
+@limiter.limit("60/minute")
 async def summary(request: Request, db: AsyncSession = Depends(get_db)):
     """High-level dashboard summary — the full story at a glance."""
     total_threats = await db.execute(select(func.count(Threat.id)))
