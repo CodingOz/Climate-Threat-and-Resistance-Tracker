@@ -127,3 +127,24 @@ class SummaryResponse(BaseModel):
     threats: ThreatSummary
     corporate_actors: CorporateSummary
     resistance: ResistanceSummary
+    
+
+
+# ─────────────────────────────────────────────────────────────
+# RISK ANALYSIS
+# ─────────────────────────────────────────────────────────────
+
+class RiskScoreBreakdown(BaseModel):
+    co2_score: float
+    corporate_exposure_score: float
+    resistance_gap_score: float
+    geographic_score: float
+
+
+class ThreatRiskScoreResponse(BaseModel):
+    threat_id: str
+    threat_name: str
+    risk_score: float
+    risk_band: str
+    breakdown: RiskScoreBreakdown
+    methodology: str

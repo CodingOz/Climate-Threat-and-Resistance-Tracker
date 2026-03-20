@@ -76,3 +76,42 @@ async def test_resistance_wins(client: AsyncClient):
     response = await client.get("/analytics/resistance/wins")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+    
+@pytest.mark.asyncio
+async def test_threat_risk_score(client: AsyncClient, auth_headers: dict):
+    # Create a threat to test against
+    create = await client.post("/threats/", json={
+        "name": "Risk Score Test Threat",
+        "threat_type": "PIPELINE",
+        "status": "PROPOSED",
+        "country": "Brazil",
+        "region": "Amazon",
+        "description": "Test threat for risk score endpoint",
+        "estimated_co2_impact_tonnes": 250000000.0,
+        "land_area_affected_km2": 500.0,
+        "latitude": -5.0,
+        "longitude": -60.0,
+        "source_url": "https://example.com"
+    }, headers=auth_headers)
+    assert create.status_code == 201
+    threat_id = create.json()["id"]
+
+    response = await client.get(f"/analytics/threats/{threat_id}/risk-score")
+    assert response.status_code == 200
+    data = response.json()
+    assert "risk_score" in data
+    assert "risk_band" in data
+    assert "breakdown" in data
+    assert "methodology" in data
+    assert data["risk_band"] in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    assert 0 <= data["risk_score"] <= 100
+    assert "co2_score" in data["breakdown"]
+    assert "corporate_exposure_score" in data["breakdown"]
+    assert "resistance_gap_score" in data["breakdown"]
+    assert "geographic_score" in data["breakdown"]
+
+
+@pytest.mark.asyncio
+async def test_threat_risk_score_not_found(client: AsyncClient):
+    response = await client.get("/analytics/threats/nonexistent-id/risk-score")
+    assert response.status_code == 404

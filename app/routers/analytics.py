@@ -13,8 +13,10 @@ from app.schemas.analytics import (
     CO2AtRiskResponse, CO2BreakdownItem, WorstOffenderResponse,
     CampaignSuccessRateResponse, CampaignOutcomeItem, ResistanceCoverageResponse,
     MostActiveOrgResponse, ResistanceWinResponse, SummaryResponse,
-    ThreatSummary, CorporateSummary, ResistanceSummary
+    ThreatSummary, CorporateSummary, ResistanceSummary, RiskScoreBreakdown,
+    ThreatRiskScoreResponse
 )
+from app.schemas.error import ErrorResponse
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -324,4 +326,109 @@ async def summary(request: Request, db: AsyncSession = Depends(get_db)):
             campaigns_won=won_result.scalar(),
             total_petition_signatures=total_signatures.scalar(),
         ),
+    )
+    
+# Geographic risk multipliers — regions with weaker regulation score higher
+GEOGRAPHIC_RISK = {
+    "United Kingdom": 0.6,
+    "United States": 0.65,
+    "Canada": 0.6,
+    "Norway": 0.5,
+    "France": 0.55,
+    "Brazil": 0.9,
+    "Uganda": 0.95,
+    "Tanzania": 0.95,
+}
+GEOGRAPHIC_DEFAULT = 0.75
+
+
+@router.get(
+    "/threats/{threat_id}/risk-score",
+    response_model=ThreatRiskScoreResponse,
+    responses={404: {"model": ErrorResponse}},
+    summary="Composite risk score for a specific threat",
+    description=(
+        "Synthesises CO2 impact, number of linked corporate actors, "
+        "active resistance campaign coverage, and geographic regulatory "
+        "context into a single weighted risk score out of 100."
+    )
+)
+@limiter.limit("60/minute")
+async def threat_risk_score(
+    request: Request,
+    threat_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    # Fetch the threat
+    threat_result = await db.execute(select(Threat).where(Threat.id == threat_id))
+    threat = threat_result.scalar_one_or_none()
+    if not threat:
+        raise HTTPException(status_code=404, detail="Threat not found")
+
+    # --- CO2 Score (0-40 points) ---
+    # Normalised against 500Mt as the upper bound (JBS Amazon case)
+    MAX_CO2 = 500_000_000
+    co2 = threat.estimated_co2_impact_tonnes or 0
+    co2_score = round(min(co2 / MAX_CO2, 1.0) * 40, 2)
+
+    # --- Corporate Exposure Score (0-25 points) ---
+    # More companies involved = harder to stop, higher risk
+    company_count_result = await db.execute(
+        select(func.count(ThreatCompany.company_id))
+        .where(ThreatCompany.threat_id == threat_id)
+    )
+    company_count = company_count_result.scalar() or 0
+    # Caps at 5 companies for full score
+    corporate_score = round(min(company_count / 5, 1.0) * 25, 2)
+
+    # --- Resistance Gap Score (0-25 points) ---
+    # No active campaigns = maximum risk score for this component
+    # Active campaigns reduce the score — organised resistance lowers risk
+    active_campaign_result = await db.execute(
+        select(func.count(Campaign.id))
+        .where(
+            Campaign.threat_id == threat_id,
+            Campaign.status.in_([CampaignStatus.ACTIVE, CampaignStatus.ONGOING])
+        )
+    )
+    active_campaigns = active_campaign_result.scalar() or 0
+    # More campaigns = lower resistance gap score
+    resistance_gap_score = round(max(0, 1.0 - min(active_campaigns / 3, 1.0)) * 25, 2)
+
+    # --- Geographic Score (0-10 points) ---
+    # Regions with weaker regulatory environments score higher
+    geo_multiplier = GEOGRAPHIC_RISK.get(threat.country, GEOGRAPHIC_DEFAULT)
+    geographic_score = round(geo_multiplier * 10, 2)
+
+    # --- Composite Score ---
+    total_score = round(co2_score + corporate_score + resistance_gap_score + geographic_score, 2)
+
+    # --- Risk Band ---
+    if total_score >= 75:
+        risk_band = "CRITICAL"
+    elif total_score >= 50:
+        risk_band = "HIGH"
+    elif total_score >= 25:
+        risk_band = "MEDIUM"
+    else:
+        risk_band = "LOW"
+
+    return ThreatRiskScoreResponse(
+        threat_id=threat_id,
+        threat_name=threat.name,
+        risk_score=total_score,
+        risk_band=risk_band,
+        breakdown=RiskScoreBreakdown(
+            co2_score=co2_score,
+            corporate_exposure_score=corporate_score,
+            resistance_gap_score=resistance_gap_score,
+            geographic_score=geographic_score,
+        ),
+        methodology=(
+            "Score out of 100 composed of: CO2 impact (40pts, normalised against 500Mt upper bound), "
+            "corporate exposure (25pts, number of linked companies capped at 5), "
+            "resistance gap (25pts, reduced by active opposition campaigns), "
+            "geographic regulatory risk (10pts, based on country regulatory context). "
+            "Bands: LOW <25, MEDIUM 25-50, HIGH 50-75, CRITICAL 75+."
+        )
     )
